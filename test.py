@@ -1,35 +1,56 @@
-import phonenumbers
-import opencage 
-import folium
+from flask import Flask, render_template_string, request
 
-from phonenumbers import geocoder
-from opencage.geocoder import OpenCageGeocode
+app = Flask(__name__)
 
-number = "+33768720030"
+HTML = """
+<!doctype html>
+<html>
+<head>
+  <title>Partage de position</title>
+</head>
+<body>
+  <h2>Partager votre position</h2>
+  <button onclick="getLocation()">Partager</button>
+  <p id="status"></p>
 
+  <script>
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(sendPosition);
+      } else {
+        document.getElementById("status").innerHTML = "Géolocalisation non supportée.";
+      }
+    }
 
-pepnumber = phonenumbers.parse(number)
-location = geocoder.description_for_number(pepnumber , "fr")
-print (location)
+    function sendPosition(position) {
+      fetch("/location", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude
+        })
+      }).then(() => {
+        document.getElementById("status").innerHTML = "Position envoyée avec succès.";
+      });
+    }
+  </script>
+</body>
+</html>
+"""
 
-from phonenumbers import carrier
-service_pro = phonenumbers.parse(number)
-print(carrier.name_for_number(service_pro, "fr" ))
+@app.route("/")
+def index():
+    return render_template_string(HTML)
 
-key = "9fb018e62d3d45eea923bea060b3df32"
+@app.route("/location", methods=["POST"])
+def location():
+    data = request.get_json()
+    print("Position reçue :", data)
+    return "OK", 200
 
-geocoder = OpenCageGeocode(key)
-query= str(location)
-results= geocoder.geocode(query)
-# print(results)
-
-lat = results[0]['geometry']["lat"]
-lng = results[0]['geometry']["lng"]
-
-print(lat,lng)
-
-myMap = folium.Map(location= [lat, lng], zoom_start=9)
-folium.Marker([lat, lng], popup=location).add_to(myMap)
-
-myMap.save("mylocation.html")
+if __name__ == "__main__":
+    app.run(debug=True)
 
